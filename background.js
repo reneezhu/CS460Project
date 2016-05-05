@@ -21,20 +21,18 @@ try {
 
 /*To keep track of current active frames. Needs tab id and frame id to associate them.
   Keeps track of various details used to properly block all ads
-  From catblock
+  Based on datastructure from catblock repo
 */
 frameData = {
 	// Returns the data object for the frame with ID frameId on the tab with
-	// ID tabId. If frameId is not specified, it'll return the data for all
-	// frames on the tab with ID tabId. Returns undefined if tabId and frameId
-	// are not being tracked.
+	// ID tabId
 	get: function(tabId, frameId) {
 	    if (frameId !== undefined)
 	        return (frameData[tabId] || {})[frameId];
 	    return frameData[tabId];
 	},
 
-	// Record that |tabId|, |frameId| points to |url|.
+	// Record a tab points to a given url
 	record: function(tabId, frameId, url) {
 	    var fd = frameData;
 	    if (!fd[tabId]) fd[tabId] = {};
@@ -44,47 +42,36 @@ frameData = {
 	        domain: parseUri(url).hostname,
 	        resources: {}
 	    };
-	    //fd[tabId][frameId].whitelisted = page_is_whitelisted(url);
 	},
 
-	// Watch for requests for new tabs and frames, and track their URLs.
-	// Inputs: details: object from onBeforeRequest callback
-	// Returns false if this request's tab+frame are not trackable.
+	//Track all new requests and the urls
 	track: function(details) {
 	    var fd = frameData, tabId = details.tabId;
 
 	    // A hosted app's background page
-	    if (tabId === -1) {
-	        return false;
-	    }
+	    if (tabId === -1) {return false;}
 
-	    if (details.type === 'main_frame') { // New tab
+	    // New tab
+	    if (details.type === 'main_frame') { 
 	        delete fd[tabId];
 	        fd.record(tabId, 0, details.url);
 	        fd[tabId].blockCount = 0;
-	        console.log("\n-------", fd.get(tabId, 0).domain, ": loaded in tab", tabId, "--------\n\n");
 	        return true;
 	    }
 
 	    // Request from a tab opened before AdBlock started, or from a
 	    // chrome:// tab containing an http:// iframe
-	    if (!fd[tabId]) {
-	        console.log("[DEBUG]", "Ignoring unknown tab:", tabId, details.frameId, details.url);
-	        return false;
-	    }
+	    if (!fd[tabId]) {return false;}
 
-	    // Some times e.g. Youtube create empty iframes via JavaScript and
-	    // inject code into them.  So requests appear from unknown frames.
-	    // Treat these frames as having the same URL as the tab.
+	    // Requests might come from unknown frames
 	    var potentialEmptyFrameId = (details.type === 'sub_frame' ? details.parentFrameId: details.frameId);
 	    if (undefined === fd.get(tabId, potentialEmptyFrameId)) {
 	        fd.record(tabId, potentialEmptyFrameId, fd.get(tabId, 0).url);
-	        console.log("[DEBUG]", "Null frame", tabId, potentialEmptyFrameId, "found; giving it the tab's URL.");
 	    }
 
-	    if (details.type === 'sub_frame') { // New frame
+	    // New frame
+	    if (details.type === 'sub_frame') { 
 	        fd.record(tabId, details.frameId, details.url);
-	        console.log("[DEBUG]", "=========== Tracking frame", tabId, details.parentFrameId, details.frameId, details.url);
 	    }
 
 	    return true;
@@ -110,6 +97,7 @@ chrome.webRequest.onBeforeRequest.addListener(insepectURL,{urls:  ['<all_urls>']
 * Function to inspect all url requests and the potentially block
 */
 function insepectURL(details){
+	//Check if ad blocking is enabled
 	if(blockAds){
 		return {cancel : false};
 	}
@@ -127,6 +115,7 @@ function insepectURL(details){
 	var frameDomain = frameData.get(tabId, requestingFrameId).domain;
 	frameData.storeResource(tabId, requestingFrameId, details.url, elementType, frameDomain);
 
+	//Check to see if malware site
 	if(blockMalware)
 		if(checkMalware(details.url)){
 			return {cancel: true};
@@ -141,6 +130,7 @@ function insepectURL(details){
 		console.log(blocked);
 	}
 
+	//Redirect subdocuments to a blank page
   	if(blocked && (elementType === "subdocument")){
   		return { redirectUrl: "about:blank" };
   	}
@@ -173,13 +163,11 @@ chrome.webNavigation.onTabReplaced.addListener(function(details) {
     frameData.removeTabId(details.replacedTabId);
 });
 
+//Used for html5 history api changes
 chrome.webNavigation.onHistoryStateUpdated.addListener(function(details) {
-    if (details && details.hasOwnProperty("frameId") && details.hasOwnProperty("tabId") &&
-        details.hasOwnProperty("url") && details.hasOwnProperty("transitionType") &&
-        details.transitionType === "link") {
+    if (details && details.hasOwnProperty("frameId") && details.hasOwnProperty("tabId") && details.hasOwnProperty("url") && details.hasOwnProperty("transitionType") && details.transitionType === "link") {
         var tabData = frameData.get(details.tabId, details.frameId);
-        if (tabData &&
-            tabData.url !== details.url) {
+        if (tabData && tabData.url !== details.url) {
             details.type = 'main_frame';
             details.url = getUnicodeUrl(details.url);
             frameData.track(details);
@@ -187,18 +175,27 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(function(details) {
     }
 });
 
-//listen fro setting changes
+//Listen for commands to change settings
 chrome.extension.onConnect.addListener(function(port) {
 	port.onMessage.addListener(function(msg) {
-	    console.log("message recieved: "+ msg.command);
+	    //Prefetch settings
 	    if(msg.command === "prefetch-change"){
 	    	prefetchWebpages = !prefetchWebpages;
 	    	port.postMessage({prefetch:prefetchWebpages});
+
+	    	try {
+			    chrome.privacy.network.networkPredictionEnabled.set({
+			        value: prefetchWebpages,
+			        scope: 'regular'
+			    }, callback);
+			} catch(ex) {
+			    console.error(ex);
+			}
 	    }
 	    if(msg.command === "prefetch-status"){
 	    	port.postMessage({prefetch:prefetchWebpages});
 	    }
-
+	    //Malware settings
 	    if(msg.command === "malware-change"){
 	    	blockMalware = !blockMalware;
 	    	port.postMessage({malware:blockMalware});
@@ -206,14 +203,13 @@ chrome.extension.onConnect.addListener(function(port) {
 	    if(msg.command === "malware-status"){
 	    	port.postMessage({malware:blockMalware});
 	    }
-
+	    //Blocker settings
 	    if(msg.command === "blocker-change"){
 	    	blockAds = !blockAds;
 	    	port.postMessage({blocker:blockAds});
 	    }
 	    if(msg.command === "blocker-status"){
 	    	port.postMessage({blocker:blockAds});
-	    }
-	    
+	    }  
 	});
 });

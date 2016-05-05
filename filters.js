@@ -9,8 +9,6 @@ var generalRules = new Array();
 var cosmeticFiltering = [];
 var malwareList = [];
 
-//TODO: create a new way to search for appropriate filters
-
 //Malware EasyList
 $.get('malwaredomains_full.txt', function(data){
     lines = data.split('\n');
@@ -176,6 +174,8 @@ processExpression = function(expression){
     if (key)
         filter.key = new RegExp(key, matchcase);
 
+    //Transform into valid regex from rule
+    //...Any cleaner way to do this?
     rule = rule.replace(/\*-\*-\*-\*-\*/g, '*')
                 .replace(/\*\*+/g, '*')
                 .replace(/([^a-zA-Z0-9_\|\^\*])/g, '\\$1')

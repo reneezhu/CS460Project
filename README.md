@@ -1,11 +1,13 @@
 # CS460Project
-Introduction<br />
-Our project is a simple Adblocker in which We implemented a listener that intercepts all requests before they are sent. These requests are then processed and the corresponding url, tab id, and domain are extracted and then tested against a list of filters. <br />
-The filters are loaded from EasyList and have the appropriate settings and a corresponding regular expression to check against.<br />
-Also, it can block the malware websites by matching the url with the malware domain list.<br />
-Besides, we also implemented an UI let the user to make some basic options.<br />
+<b>Introduction</b><br />
+Our project is a simple Adblocker in which we implemented a web request listener that intercepts ALL web requests before they are sent out. These requests are then processed and the corresponding url, tab id, and domain are extracted to be tested against a set of appropriate filters.The filters used are loaded from EasyList and each have the appropriate settings and a corresponding regular expression to check if a web request should be blocked or not. Additionally, it can block the malware websites by matching the url with the malware domain list. There is also a basic UI to let the user to make some options.<br />
+
+<b>Basic Options</b><br>
+<b>    Prefetch</b> - Chrome tries to prefetch websites based on context within the omnibox. However, this can potentially lead to malicious content or ads being loaded. As such, this is disabled by default, but it can enabled or disabled. <br>
+<b>    Block Malware Sites</b> - There is also an option to enable/disable blocking of malware ridden domains.<br>
+<b>    Block Ads</b> - This is basically turn on/off the ad block functionality. 
 <br /><br /><br />
-How to use it:<br />
+<b>How to use it:</b><br />
 1. Download the files<br />
 2. Goto the extention in chrome and enable developer mode<br />
 3. Load unpacked extension<br />

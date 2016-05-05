@@ -11,7 +11,6 @@ var malwareList = [];
 
 //TODO: create a new way to search for appropriate filters
 
-
 //Malware EasyList
 $.get('malwaredomains_full.txt', function(data){
     lines = data.split('\n');
@@ -63,7 +62,7 @@ $.get('easylist.txt', function(data){
             }
 
             //Add to general rules if none other apply
-            if(filter.domains.length === 0 && filter.allowedElementTypes.length === 8){
+            if(filter.domains.length === 1 && filter.allowedElementTypes.length === 8){
                 generalRules.push(filter);
             }
         }
@@ -132,7 +131,7 @@ processExpression = function(expression){
             option = 'image';
 
         //Element type
-        if (option in ["script","image","xmlhttprequest","object","document","subdocument","stylesheet","other"]) { 
+        if (["script","image","xmlhttprequest","object","document","subdocument","stylesheet","other"].indexOf(option) != -1) { 
             if (inverted) {
                 if(allowedElementTypes === undefined)
                     allowedElementTypes = ["script","image","xmlhttprequest","object","document","subdocument","stylesheet","other"];
@@ -217,18 +216,12 @@ createDomainSet = function(domainText){
     return data;
 }
 
-
 checkMalware = function(url){
     url=url.replace("http://", "");
     url=url.replace("https://", "");
     url=url.replace("www.","")
-    console.log(url);
+
     for(var i = 0; i < malwareList.length; i++){
-        if (i==0){
-            console.log("malware url:"+malwareList[i]);
-            console.log("true url:"+url);
-            console.log(url.indexOf(malwareList[i]));
-        }
         if(url.indexOf(malwareList[i]) != -1){
             return true;
         }
@@ -250,7 +243,7 @@ checkMatch = function(url, elementType, domain){
         for(var i = 0; i < WLdomainRules[domain].length; i++){
             var filter = WLdomainRules[domain][i];
             if(checkFilterMatch(url, elementType, domain, thirdParty, filter)){
-                return false;
+                return filter;
             }
         }
 

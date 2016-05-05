@@ -1,10 +1,7 @@
-//TODO: malware domains
-//TOOD: whitelisting
-//TODO: implement element hiding
-
-
 //Settings
 var prefetchWebpages = false;
+var blockMalware = true;
+var blockAds = true;
 
 //Debugging purposes
 var displayLogs = true;
@@ -113,6 +110,10 @@ chrome.webRequest.onBeforeRequest.addListener(insepectURL,{urls:  ['<all_urls>']
 * Function to inspect all url requests and the potentially block
 */
 function insepectURL(details){
+	if(blockAds){
+		return {cancel : false};
+	}
+
 	details.url = getUnicodeUrl(details.url);
 
 	if (!frameData.track(details))
@@ -126,26 +127,26 @@ function insepectURL(details){
 	var frameDomain = frameData.get(tabId, requestingFrameId).domain;
 	frameData.storeResource(tabId, requestingFrameId, details.url, elementType, frameDomain);
 
+	if(blockMalware)
+		if(checkMalware(details.url)){
+			return {cancel: true};
+		}
+
   	var blocked = checkMatch(details.url, elementType, frameDomain);
 
-  	//Check if it's in malware list
-  	if (checkMalware(details.url)){
-  		blocked = true;
-  	}
-
 	//Log data to console for debugging purposes
-	if(!showOnlyBlocked || (showOnlyBlocked && blocked !== null))
+	if(!showOnlyBlocked || (showOnlyBlocked && blocked !== null)){
 		console.log("URL: " + details.url + "\tTab ID: " + tabId + "\tRequest Type: " + requestType + "\tElement Type: " 
 		+ elementType + "\n\tDomain: " + frameDomain + "\tRequesting Frame: " + requestingFrameId + "\tBlocked: " + blocked);
-
-	console.log(blocked);
+		console.log(blocked);
+	}
 
   	if(blocked && (elementType === "subdocument")){
   		return { redirectUrl: "about:blank" };
   	}
   	
 	//Didn't match against any rules
-	return {cancel: (blocked !== null)};
+	return {cancel: (blocked !== null && !blocked.whiteList)};
 }
 
 
@@ -184,4 +185,35 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(function(details) {
             frameData.track(details);
         }
     }
+});
+
+//listen fro setting changes
+chrome.extension.onConnect.addListener(function(port) {
+	port.onMessage.addListener(function(msg) {
+	    console.log("message recieved: "+ msg.command);
+	    if(msg.command === "prefetch-change"){
+	    	prefetchWebpages = !prefetchWebpages;
+	    	port.postMessage({prefetch:prefetchWebpages});
+	    }
+	    if(msg.command === "prefetch-status"){
+	    	port.postMessage({prefetch:prefetchWebpages});
+	    }
+
+	    if(msg.command === "malware-change"){
+	    	blockMalware = !blockMalware;
+	    	port.postMessage({malware:blockMalware});
+	    }
+	    if(msg.command === "malware-status"){
+	    	port.postMessage({malware:blockMalware});
+	    }
+
+	    if(msg.command === "blocker-change"){
+	    	blockAds = !blockAds;
+	    	port.postMessage({blocker:blockAds});
+	    }
+	    if(msg.command === "blocker-status"){
+	    	port.postMessage({blocker:blockAds});
+	    }
+	    
+	});
 });

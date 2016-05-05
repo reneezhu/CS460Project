@@ -1,0 +1,16 @@
+{
+  "name": "AdBlock Terrible",
+  "version": "1.0",
+  "description": "Garbage",
+  "permissions": ["webRequest", "webRequestBlocking","http://*/*", "https://*/*","tabs","<all_urls>", "webNavigation", "privacy"],
+  "background": {
+    "scripts": ["jquery-min.js", "background.js", "functions.js", "filters.js", "punycode.min.js"]
+  },
+  "content_scripts": [
+    {
+        "matches": ["http://*/*", "https://*/*"],
+        "js": ["jquery-min.js", "contentscript.js"]
+    }],
+
+  "manifest_version": 2
+}
